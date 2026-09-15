@@ -8,7 +8,6 @@ load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "detective_conan_full_project_key_2026")
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # 4대 대표 추리 사건 데이터
 CASES = {
@@ -49,7 +48,7 @@ CASES = {
         "theme": "음악·다잉 메시지 암호",
         "partner": "에도가와 코난",
         "partner_avatar": "conan_pointing.jpg",
-        "bg_img": "conan_pointing.jpg",  # 404 방지를 위해 정상 확인된 이미지로 우선 매핑
+        "bg_img": "conan_pointing.jpg",
         "bgm": "https://ia800301.us.archive.org/15/items/lp_moonlight-sonata_ludwig-van-beethoven-frdric-chopin-alexand/lp_moonlight-sonata_ludwig-van-beethoven-frdric-chopin-alexand_disc1side1.mp3",
         "intro": "달빛 비치는 월영도 공민관. 베토벤의 '월광' 선율 뒤에 살인사건이 발생했습니다. 현장에 남겨진 피 묻은 악보 속 알파벳 암호를 풀어내세요!",
         "hotspots": [
@@ -126,7 +125,6 @@ CASES = {
     }
 }
 
-# 구버전 URL 자동 매핑
 LEGACY_MAP = {
     "case_1": "case_bandaged",
     "case_2": "case_moonlight",
@@ -134,18 +132,19 @@ LEGACY_MAP = {
     "case_4": "case_train"
 }
 
+# 오늘의 탐정 운세 데이터
 FORTUNES = {
     "success": [
         {
             "luck": "대길 (大吉) - 실버 불렛(은빛 탄환)의 직관",
             "phrase": "“추리에 이기고 지는 건 없어. 진실은 언제나 단 하나뿐이니까!” 오늘 당신의 모든 결정과 판단은 과녁의 한가운데를 정확히 꿰뚫습니다.",
-            "color": "미드나잇 사파이어 블루 (#1d4ed8)",
+            "color": "파란색",
             "item": "코난의 붉은 나비넥타이 음성변조기"
         },
         {
             "luck": "상길 (上吉) - 월하의 마술사를 간파한 혜안",
             "phrase": "“트릭은 뇌가 만들어낸 수수께끼일 뿐이야.” 복잡하게 꼬여 있던 문제의 실마리가 오늘 거짓말처럼 명쾌하게 풀려나갑니다.",
-            "color": "순백의 실버 화이트 (#e2e8f0)",
+            "color": "흰색",
             "item": "괴도 키드의 모노클 안경"
         }
     ],
@@ -153,13 +152,13 @@ FORTUNES = {
         {
             "luck": "중길 (中吉) - 빗나간 마취총과 재도약의 시간",
             "phrase": "“완벽한 인간은 없어. 실패를 딛고 일어설 때 비로소 진짜 탐정이 되는 거야.” 성급함을 가라앉히고 한 템포 쉬어가면 뜻밖의 조력자를 만납니다.",
-            "color": "차분한 포레스트 올리브 (#15803d)",
+            "color": "초록색",
             "item": "아가사 박사표 따뜻한 레몬 홍차"
         },
         {
             "luck": "소길 (小吉) - 안개 낀 런던의 신중함",
             "phrase": "“눈앞의 환상에 속지 마라. 보이지 않는 곳에 진짜 열쇠가 있다.” 서두르지 말고 단서들의 연결고리를 차분히 재점검해보세요.",
-            "color": "묵직한 차콜 블랙 (#334155)",
+            "color": "검은색",
             "item": "아카이 슈이치의 검은 니트 비니"
         }
     ]
@@ -179,7 +178,16 @@ def case_detail(case_id):
         return redirect(url_for('case_detail', case_id='case_bandaged'))
 
     session["current_case"] = case_id
-    return render_template("sub.html", case=case)
+    user_api_key = session.get("user_openai_api_key", "")
+    return render_template("sub.html", case=case, user_api_key=user_api_key)
+
+# 사용자 개인 API 키 등록 라우트
+@app.route("/api/set_key", methods=["POST"])
+def set_key():
+    data = request.get_json()
+    key = data.get("api_key", "").strip()
+    session["user_openai_api_key"] = key
+    return jsonify({"status": "ok", "saved": bool(key)})
 
 @app.route("/solve", methods=["POST"])
 def solve():
@@ -197,6 +205,14 @@ def solve():
 def chat():
     data = request.get_json()
     user_msg = data.get("message", "")
+    
+    user_api_key = session.get("user_openai_api_key") or data.get("api_key", "").strip()
+    
+    if not user_api_key:
+        return jsonify({
+            "reply": "⚠️ 우측 상단의 '🔑 내 OpenAI API 키' 입력창에 본인의 API 키(sk-...)를 먼저 입력해줘! 그래야 나와 실시간으로 수사를 공조할 수 있어!"
+        })
+
     case_id = session.get("current_case", "case_bandaged")
     case = CASES.get(case_id, CASES["case_bandaged"])
     
@@ -212,7 +228,8 @@ def chat():
     )
     
     try:
-        res = client.chat.completions.create(
+        user_client = OpenAI(api_key=user_api_key)
+        res = user_client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": system_prompt},
@@ -222,7 +239,9 @@ def chat():
         )
         return jsonify({"reply": res.choices[0].message.content})
     except Exception as e:
-        return jsonify({"reply": "치지직... 무전에 잡음이 심해! 단서를 다시 확인해봐!"}), 500
+        return jsonify({"reply": "입력하신 OpenAI API 키가 유효하지 않거나 사용 한도를 초과했어! 키를 다시 확인해줘."})
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    # Render 클라우드 환경의 포트 바인딩 및 로컬 지원
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)

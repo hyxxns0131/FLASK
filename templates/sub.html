@@ -5,11 +5,10 @@
 {% endblock %}
 
 {% block content %}
-<!-- 배경음악 오디오 -->
 <audio id="bgmAudio" loop src="{{ case.bgm }}"></audio>
 
 <div class="game-layout">
-    <!-- 좌측: 포인트 앤 클릭 게임 보드 -->
+    <!-- 좌측: 게임 보드 -->
     <div class="investigation-board">
         <div class="board-top-bar">
             <div class="step-nav-bar">
@@ -21,16 +20,18 @@
             <button type="button" class="btn-sound" id="soundToggleBtn" onclick="toggleSound()">🎵 BGM ON</button>
         </div>
 
-        <!-- 1단계: 현장 핫스팟 클릭 조사 -->
+        <!-- 1단계: 클릭 조사 -->
         <div class="step-content" id="step-1">
             <div class="case-header-img scene-canvas">
-                <img src="{{ url_for('static', filename='images/' + case.bg_img) }}" alt="{{ case.title }}">
+                <img src="{{ url_for('static', filename='images/' + case.bg_img) }}" 
+                     alt="{{ case.title }}"
+                     onerror="this.onerror=null; this.src='{{ url_for('static', filename='images/conan_main.jpg') }}';">
                 <div class="scene-overlay">
-                    <span class="crosshair-guide">🔍 반짝이는 단서 스팟을 클릭하여 증거를 수집하세요!</span>
+                    <span class="crosshair-guide">🔍 아래 의심 구역들을 클릭하여 인벤토리에 단서를 수집하세요!</span>
                 </div>
             </div>
 
-            <h3>🔎 현장 탐색 구역 (클릭하여 단서 획득)</h3>
+            <h3>🔎 현장 탐색 구역 (클릭하여 증거 수집)</h3>
             <div class="hotspot-grid">
                 {% for spot in case.hotspots %}
                 <div class="hotspot-card" id="spot-{{ loop.index }}" onclick="collectClue('{{ spot.item }}', '{{ spot.desc }}', '{{ spot.icon }}', this)">
@@ -43,9 +44,9 @@
                 {% endfor %}
             </div>
 
-            <!-- 하단 인벤토리 바 -->
+            <!-- 증거품 인벤토리 -->
             <div class="inventory-section">
-                <h4>🎒 코난의 증거품 인벤토리 (<span id="invCount">0</span>/3)</h4>
+                <h4>🎒 증거품 인벤토리 (<span id="invCount">0</span>/3)</h4>
                 <div class="inventory-slots" id="inventorySlots">
                     <div class="slot empty">빈 슬롯</div>
                     <div class="slot empty">빈 슬롯</div>
@@ -58,7 +59,7 @@
             </div>
         </div>
 
-        <!-- 2단계: 단서 조합 및 특수 기믹 (피아노/폭탄 암호) -->
+        <!-- 2단계: 사건별 기믹 -->
         <div class="step-content hidden" id="step-2">
             <h2>🧩 단서 조합 및 트릭 파훼</h2>
             
@@ -77,7 +78,7 @@
             {% elif case.id == 'case_moonlight' %}
             <div class="puzzle-box">
                 <h4>🎹 월광 소나타 피아노 건반 암호</h4>
-                <p>악보에 찍힌 음계를 클릭해 의문의 다잉 메시지 4자리를 완성하세요. (정답: ASAI)</p>
+                <p>악보에 찍힌 음계를 클릭해 의문의 다잉 메시지 4자리를 완성하세요. (힌트: 진료소 여의사의 성씨)</p>
                 <div class="piano-keyboard">
                     <button type="button" class="piano-key" onclick="pressPiano('A')">A (라)</button>
                     <button type="button" class="piano-key" onclick="pressPiano('S')">S (솔)</button>
@@ -93,7 +94,7 @@
             {% elif case.id == 'case_kid' %}
             <div class="puzzle-box">
                 <h4>🔦 옥상 서치라이트 3단계 각도 정렬</h4>
-                <p>밤하늘 와이어를 드러낼 올바른 서치라이트 순서를 클릭하세요! (정답: A ➔ C ➔ B)</p>
+                <p>밤하늘 와이어를 드러낼 올바른 서치라이트 순서를 클릭하세요! (순서: A ➔ C ➔ B)</p>
                 <div class="light-buttons">
                     <button type="button" class="choice-chip" onclick="clickLight('A')">조명 A (헬기 1호기)</button>
                     <button type="button" class="choice-chip" onclick="clickLight('C')">조명 C (박물관 첨탑)</button>
@@ -109,7 +110,7 @@
             <div class="puzzle-box bomb-theme">
                 <h4>💣 시한폭탄 카운트다운 & 객차 분리 패드</h4>
                 <div class="timer-box">남은 폭파 시간: <span id="timerText">60</span>초</div>
-                <p>승차권 뒷면의 4자리 코드를 키패드에 입력하세요! (정답: 8942)</p>
+                <p>승차권 뒷면에 적힌 4자리 코드를 키패드에 입력하세요! (힌트: 8942)</p>
                 <div class="keypad-input-row">
                     <input type="text" id="bombCodeInput" maxlength="4" placeholder="4자리 암호">
                     <button type="button" class="btn btn-primary" onclick="checkBombCode()">해제</button>
@@ -144,7 +145,7 @@
             </div>
         </div>
 
-        <!-- 4단계: 최종 범인 지목 -->
+        <!-- 4단계: 범인 지목 -->
         <div class="step-content hidden" id="step-4">
             <h2>⚖️ 마취총 조준: 범인은 바로 너야!</h2>
             <p class="sub-lead">모든 단서와 트릭 조합이 끝났습니다. 당신이 지목할 진범은 누구입니까?</p>
@@ -169,25 +170,41 @@
         </div>
     </div>
 
-    <!-- 우측: 코난/아카이 파트너 대화창 (코난 프로필 사진 연동) -->
+    <!-- 우측: 코난 파트너 챗봇 & 눈에 띄는 API 키 등록창 -->
     <div class="character-chat-section">
         <div class="char-profile">
-            <!-- 요청하신 코난 실제 아바타 사진 연동 -->
-            <img src="{{ url_for('static', filename='images/' + case.partner_avatar) }}" alt="{{ case.partner }}" class="char-avatar">
+            <img src="{{ url_for('static', filename='images/' + case.partner_avatar) }}" 
+                 alt="{{ case.partner }}" 
+                 class="char-avatar"
+                 onerror="this.onerror=null; this.src='{{ url_for('static', filename='images/conan_watch.jpg') }}';">
             <div class="char-meta">
                 <h4>{{ case.partner }}</h4>
                 <span class="status-dot">● 온라인 (수사 파트너)</span>
             </div>
         </div>
 
-        <div class="chat-flow" id="chatFlow">
-            <div class="chat-bubble partner">
-                <div class="author">{{ case.partner }}</div>
-                <p>"현장의 구석구석을 클릭해서 단서를 모아봐! 이상한 점이 보이면 언제든 나한테 물어보고!"</p>
+        <!-- 🔑 핵심: 확실하게 표시되는 개인 API 키 설정 영역 -->
+        <div style="padding: 0.8rem; background: #0f172a; border-bottom: 2px solid #38bdf8; display: flex; flex-direction: column; gap: 0.4rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 0.8rem; font-weight: bold; color: #38bdf8;">🔑 내 OpenAI API 키 설정</span>
+                <span id="keyStatusText" style="font-size: 0.72rem; color: #94a3b8;">(미등록 시 기본 대화만 가능)</span>
+            </div>
+            <div style="display: flex; gap: 0.4rem;">
+                <input type="password" id="userKeyInput" value="{{ user_api_key }}" placeholder="sk-..." 
+                       style="flex: 1; background: #1e293b; border: 1px solid #38bdf8; color: #fff; padding: 0.45rem 0.6rem; border-radius: 6px; font-size: 0.8rem; outline: none;">
+                <button type="button" onclick="saveUserApiKey()" 
+                        style="background: #2563eb; color: #fff; border: none; padding: 0.45rem 0.9rem; border-radius: 6px; font-size: 0.8rem; font-weight: bold; cursor: pointer;">저장</button>
             </div>
         </div>
 
-        <!-- 추천 선택지 (로판 AI식 퀵 액션) -->
+        <div class="chat-flow" id="chatFlow">
+            <div class="chat-bubble partner">
+                <div class="author">{{ case.partner }}</div>
+                <p>"현장의 구석구석을 클릭해서 단서를 모아봐! 상단에 네 API 키를 등록하면 나와 실시간으로 단서를 추리할 수 있어!"</p>
+            </div>
+        </div>
+
+        <!-- 추천 질문 선택지 -->
         <div class="suggested-responses">
             <span class="suggestion-title">💬 추천 질문 선택지:</span>
             <div class="chip-container">
@@ -198,29 +215,76 @@
         </div>
 
         <div class="chat-input-bar">
-            <input type="text" id="userDirectInput" placeholder="단서에 대해 코난에게 질문하세요..." onkeypress="if(event.key==='Enter'){sendDirectMessage();}">
+            <input type="text" id="userDirectInput" placeholder="단서에 대해 파트너에게 질문하세요..." onkeypress="if(event.key==='Enter'){sendDirectMessage();}">
             <button type="button" class="btn-send" onclick="sendDirectMessage()">전송</button>
         </div>
     </div>
 </div>
 
 <script>
-// 사운드 시스템
-let audioPlaying = false;
-const audio = document.getElementById('bgmAudio');
-function toggleSound() {
-    if (!audioPlaying) {
-        audio.play().catch(()=>{});
-        document.getElementById('soundToggleBtn').innerText = "🔇 BGM OFF";
-        audioPlaying = true;
-    } else {
-        audio.pause();
-        document.getElementById('soundToggleBtn').innerText = "🎵 BGM ON";
-        audioPlaying = false;
+// 개인 API 키 등록 함수
+async function saveUserApiKey() {
+    const key = document.getElementById('userKeyInput').value.trim();
+    if (!key) {
+        alert("API 키를 입력해주세요!");
+        return;
+    }
+    const res = await fetch('/api/set_key', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ api_key: key })
+    });
+    if (res.ok) {
+        document.getElementById('keyStatusText').innerText = "✅ API 키 등록 완료!";
+        document.getElementById('keyStatusText').style.color = "#10b981";
+        appendChat('partner', '{{ case.partner }}', "“API 키가 확인되었어! 이제 무엇이든 편하게 물어봐!”");
     }
 }
 
-// 탭 전환
+// BGM 오디오 시스템
+let audioPlaying = false;
+let audioCtx = null;
+let bgmInterval = null;
+const audio = document.getElementById('bgmAudio');
+
+function startWebAudioBgm() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const notes = [277.18, 329.63, 415.30, 277.18, 329.63, 415.30, 246.94, 329.63, 415.30, 220.00, 329.63, 415.30];
+    let idx = 0;
+    bgmInterval = setInterval(() => {
+        if (!audioPlaying) return;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(notes[idx], audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.6);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.6);
+        idx = (idx + 1) % notes.length;
+    }, 280);
+}
+
+function toggleSound() {
+    const btn = document.getElementById('soundToggleBtn');
+    if (!audioPlaying) {
+        audioPlaying = true;
+        btn.innerText = "🔇 BGM OFF";
+        const p = audio.play();
+        if (p !== undefined) p.catch(() => startWebAudioBgm());
+        else startWebAudioBgm();
+    } else {
+        audioPlaying = false;
+        btn.innerText = "🎵 BGM ON";
+        audio.pause();
+        if (bgmInterval) { clearInterval(bgmInterval); bgmInterval = null; }
+    }
+}
+
+// 4단계 전환
 function switchStep(step) {
     for (let i = 1; i <= 4; i++) {
         document.getElementById(`step-${i}`).classList.add('hidden');
@@ -230,10 +294,9 @@ function switchStep(step) {
     document.getElementById(`tab-${step}`).classList.add('active');
 }
 
-// 인벤토리 수집 로직
+// 인벤토리 수집
 let collectedCount = 0;
 const collectedItems = new Set();
-
 function collectClue(itemName, desc, icon, cardElement) {
     if (collectedItems.has(itemName)) return;
     collectedItems.add(itemName);
@@ -247,18 +310,15 @@ function collectClue(itemName, desc, icon, cardElement) {
         slots[collectedCount - 1].className = 'slot filled';
         slots[collectedCount - 1].innerHTML = `${icon} <strong>${itemName}</strong>`;
     }
-
     appendChat('partner', '{{ case.partner }}', `“어레레~? [${itemName}]을(를) 찾았구나! ${desc}”`);
 }
 
-// 1. 붕대남 조합 기믹
 function combineItems() {
     const res = document.getElementById('combineResult');
     res.classList.remove('hidden');
     appendChat('partner', '{{ case.partner }}', "“그렇구나! 잘린 머리를 외투에 숨긴 채 활차로 날려버린 거야!”");
 }
 
-// 2. 월광 소나타 피아노 기믹
 let currentNotes = "";
 function pressPiano(note) {
     currentNotes += note;
@@ -275,7 +335,6 @@ function resetPiano() {
     document.getElementById('pianoCodeDisplay').innerText = "----";
 }
 
-// 3. 괴도 키드 조명 기믹
 let lightSeq = [];
 function clickLight(light) {
     lightSeq.push(light);
@@ -292,7 +351,6 @@ function resetLight() {
     document.getElementById('lightDisplay').innerText = "없음";
 }
 
-// 4. 열차 폭탄 타이머
 let timeLeft = 60;
 setInterval(() => {
     if (timeLeft > 0) {
@@ -314,7 +372,7 @@ function checkBombCode() {
     }
 }
 
-// 챗봇 연동
+// 챗봇 통신
 function appendChat(role, name, text) {
     const flow = document.getElementById('chatFlow');
     const bubble = document.createElement('div');
@@ -326,11 +384,12 @@ function appendChat(role, name, text) {
 
 async function requestAiReply(message) {
     appendChat('user', '나', message);
+    const key = document.getElementById('userKeyInput').value.trim();
     try {
         const res = await fetch('/api/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: message })
+            body: JSON.stringify({ message: message, api_key: key })
         });
         const data = await res.json();
         appendChat('partner', '{{ case.partner }}', data.reply);
