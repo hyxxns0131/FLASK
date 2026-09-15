@@ -1,0 +1,351 @@
+{% extends "base.html" %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='sub_style.css') }}">
+{% endblock %}
+
+{% block content %}
+<!-- 배경음악 오디오 -->
+<audio id="bgmAudio" loop src="{{ case.bgm }}"></audio>
+
+<div class="game-layout">
+    <!-- 좌측: 포인트 앤 클릭 게임 보드 -->
+    <div class="investigation-board">
+        <div class="board-top-bar">
+            <div class="step-nav-bar">
+                <button type="button" class="step-btn active" id="tab-1" onclick="switchStep(1)">1. 현장 클릭 조사</button>
+                <button type="button" class="step-btn" id="tab-2" onclick="switchStep(2)">2. 단서 조합/암호</button>
+                <button type="button" class="step-btn" id="tab-3" onclick="switchStep(3)">3. 알리바이 신문</button>
+                <button type="button" class="step-btn" id="tab-4" onclick="switchStep(4)">4. 범인 지목 🎯</button>
+            </div>
+            <button type="button" class="btn-sound" id="soundToggleBtn" onclick="toggleSound()">🎵 BGM ON</button>
+        </div>
+
+        <!-- 1단계: 현장 핫스팟 클릭 조사 -->
+        <div class="step-content" id="step-1">
+            <div class="case-header-img scene-canvas">
+                <img src="{{ url_for('static', filename='images/' + case.bg_img) }}" alt="{{ case.title }}">
+                <div class="scene-overlay">
+                    <span class="crosshair-guide">🔍 반짝이는 단서 스팟을 클릭하여 증거를 수집하세요!</span>
+                </div>
+            </div>
+
+            <h3>🔎 현장 탐색 구역 (클릭하여 단서 획득)</h3>
+            <div class="hotspot-grid">
+                {% for spot in case.hotspots %}
+                <div class="hotspot-card" id="spot-{{ loop.index }}" onclick="collectClue('{{ spot.item }}', '{{ spot.desc }}', '{{ spot.icon }}', this)">
+                    <span class="spot-icon">{{ spot.icon }}</span>
+                    <div class="spot-info">
+                        <strong>{{ spot.name }}</strong>
+                        <p class="spot-status">클릭하여 조사하기</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- 하단 인벤토리 바 -->
+            <div class="inventory-section">
+                <h4>🎒 코난의 증거품 인벤토리 (<span id="invCount">0</span>/3)</h4>
+                <div class="inventory-slots" id="inventorySlots">
+                    <div class="slot empty">빈 슬롯</div>
+                    <div class="slot empty">빈 슬롯</div>
+                    <div class="slot empty">빈 슬롯</div>
+                </div>
+            </div>
+
+            <div class="nav-actions right">
+                <button type="button" class="btn btn-primary" onclick="switchStep(2)">단서 조합 및 암호 해독 ➡️</button>
+            </div>
+        </div>
+
+        <!-- 2단계: 단서 조합 및 특수 기믹 (피아노/폭탄 암호) -->
+        <div class="step-content hidden" id="step-2">
+            <h2>🧩 단서 조합 및 트릭 파훼</h2>
+            
+            {% if case.id == 'case_bandaged' %}
+            <div class="puzzle-box">
+                <h4>🧪 트릭 도구 조합 (피아노선 + 두꺼운 외투)</h4>
+                <p>수집한 단서를 선택하여 범인이 사용한 살인 활차 도구를 완성하세요.</p>
+                <div class="combine-zone">
+                    <button type="button" class="btn btn-secondary" onclick="combineItems()">🔗 [피아노선 조각] + [두꺼운 외투] 조합하기</button>
+                    <div id="combineResult" class="combine-msg hidden">
+                        ✅ <strong>{{ case.combination.result }} 완성!</strong><br>
+                        {{ case.combination.desc }}
+                    </div>
+                </div>
+            </div>
+            {% elif case.id == 'case_moonlight' %}
+            <div class="puzzle-box">
+                <h4>🎹 월광 소나타 피아노 건반 암호</h4>
+                <p>악보에 찍힌 음계를 클릭해 의문의 다잉 메시지 4자리를 완성하세요. (정답: ASAI)</p>
+                <div class="piano-keyboard">
+                    <button type="button" class="piano-key" onclick="pressPiano('A')">A (라)</button>
+                    <button type="button" class="piano-key" onclick="pressPiano('S')">S (솔)</button>
+                    <button type="button" class="piano-key" onclick="pressPiano('I')">I (시)</button>
+                    <button type="button" class="piano-key" onclick="pressPiano('D')">D (레)</button>
+                </div>
+                <div class="code-display">
+                    입력된 암호: <span id="pianoCodeDisplay">----</span>
+                    <button type="button" class="btn-clear" onclick="resetPiano()">초기화</button>
+                </div>
+                <p id="pianoResult" class="combine-msg hidden"></p>
+            </div>
+            {% elif case.id == 'case_kid' %}
+            <div class="puzzle-box">
+                <h4>🔦 옥상 서치라이트 3단계 각도 정렬</h4>
+                <p>밤하늘 와이어를 드러낼 올바른 서치라이트 순서를 클릭하세요! (정답: A ➔ C ➔ B)</p>
+                <div class="light-buttons">
+                    <button type="button" class="choice-chip" onclick="clickLight('A')">조명 A (헬기 1호기)</button>
+                    <button type="button" class="choice-chip" onclick="clickLight('C')">조명 C (박물관 첨탑)</button>
+                    <button type="button" class="choice-chip" onclick="clickLight('B')">조명 B (시계탑)</button>
+                </div>
+                <div class="code-display">
+                    현재 켠 조명: <span id="lightDisplay">없음</span>
+                    <button type="button" class="btn-clear" onclick="resetLight()">리셋</button>
+                </div>
+                <p id="lightResult" class="combine-msg hidden"></p>
+            </div>
+            {% elif case.id == 'case_train' %}
+            <div class="puzzle-box bomb-theme">
+                <h4>💣 시한폭탄 카운트다운 & 객차 분리 패드</h4>
+                <div class="timer-box">남은 폭파 시간: <span id="timerText">60</span>초</div>
+                <p>승차권 뒷면의 4자리 코드를 키패드에 입력하세요! (정답: 8942)</p>
+                <div class="keypad-input-row">
+                    <input type="text" id="bombCodeInput" maxlength="4" placeholder="4자리 암호">
+                    <button type="button" class="btn btn-primary" onclick="checkBombCode()">해제</button>
+                </div>
+                <p id="bombResult" class="combine-msg hidden"></p>
+            </div>
+            {% endif %}
+
+            <div class="nav-actions">
+                <button type="button" class="btn btn-secondary" onclick="switchStep(1)">⬅️ 이전</button>
+                <button type="button" class="btn btn-primary" onclick="switchStep(3)">알리바이 신문 ➡️</button>
+            </div>
+        </div>
+
+        <!-- 3단계: 알리바이 신문 -->
+        <div class="step-content hidden" id="step-3">
+            <h2>👥 용의자 3인의 진술 및 알리바이</h2>
+            <div class="suspect-grid">
+                {% for s in case.suspects %}
+                <div class="suspect-card">
+                    <div class="suspect-title">
+                        <strong>{{ s.name }}</strong>
+                        <span class="role-badge">{{ s.role }}</span>
+                    </div>
+                    <p class="alibi-quote">"{{ s.alibi }}"</p>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="nav-actions">
+                <button type="button" class="btn btn-secondary" onclick="switchStep(2)">⬅️ 이전</button>
+                <button type="button" class="btn btn-primary" onclick="switchStep(4)">최종 범인 지목 ➡️</button>
+            </div>
+        </div>
+
+        <!-- 4단계: 최종 범인 지목 -->
+        <div class="step-content hidden" id="step-4">
+            <h2>⚖️ 마취총 조준: 범인은 바로 너야!</h2>
+            <p class="sub-lead">모든 단서와 트릭 조합이 끝났습니다. 당신이 지목할 진범은 누구입니까?</p>
+            <form action="/solve" method="POST">
+                <input type="hidden" name="case_id" value="{{ case.id }}">
+                <div class="decision-list">
+                    {% for s in case.suspects %}
+                    <label class="decision-label">
+                        <input type="radio" name="suspect" value="{{ s.id }}" required>
+                        <div class="decision-box">
+                            <strong>{{ s.name }}</strong> ({{ s.role }})
+                            <span class="select-text">지목 🎯</span>
+                        </div>
+                    </label>
+                    {% endfor %}
+                </div>
+                <div class="nav-actions">
+                    <button type="button" class="btn btn-secondary" onclick="switchStep(3)">⬅️ 이전</button>
+                    <button type="submit" class="btn btn-accent">마취총 격발 & 사건 해결!</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 우측: 코난/아카이 파트너 대화창 (코난 프로필 사진 연동) -->
+    <div class="character-chat-section">
+        <div class="char-profile">
+            <!-- 요청하신 코난 실제 아바타 사진 연동 -->
+            <img src="{{ url_for('static', filename='images/' + case.partner_avatar) }}" alt="{{ case.partner }}" class="char-avatar">
+            <div class="char-meta">
+                <h4>{{ case.partner }}</h4>
+                <span class="status-dot">● 온라인 (수사 파트너)</span>
+            </div>
+        </div>
+
+        <div class="chat-flow" id="chatFlow">
+            <div class="chat-bubble partner">
+                <div class="author">{{ case.partner }}</div>
+                <p>"현장의 구석구석을 클릭해서 단서를 모아봐! 이상한 점이 보이면 언제든 나한테 물어보고!"</p>
+            </div>
+        </div>
+
+        <!-- 추천 선택지 (로판 AI식 퀵 액션) -->
+        <div class="suggested-responses">
+            <span class="suggestion-title">💬 추천 질문 선택지:</span>
+            <div class="chip-container">
+                {% for choice in case.default_choices %}
+                <button type="button" class="choice-chip" onclick="sendSelectedChoice('{{ choice }}')">{{ choice }}</button>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="chat-input-bar">
+            <input type="text" id="userDirectInput" placeholder="단서에 대해 코난에게 질문하세요..." onkeypress="if(event.key==='Enter'){sendDirectMessage();}">
+            <button type="button" class="btn-send" onclick="sendDirectMessage()">전송</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// 사운드 시스템
+let audioPlaying = false;
+const audio = document.getElementById('bgmAudio');
+function toggleSound() {
+    if (!audioPlaying) {
+        audio.play().catch(()=>{});
+        document.getElementById('soundToggleBtn').innerText = "🔇 BGM OFF";
+        audioPlaying = true;
+    } else {
+        audio.pause();
+        document.getElementById('soundToggleBtn').innerText = "🎵 BGM ON";
+        audioPlaying = false;
+    }
+}
+
+// 탭 전환
+function switchStep(step) {
+    for (let i = 1; i <= 4; i++) {
+        document.getElementById(`step-${i}`).classList.add('hidden');
+        document.getElementById(`tab-${i}`).classList.remove('active');
+    }
+    document.getElementById(`step-${step}`).classList.remove('hidden');
+    document.getElementById(`tab-${step}`).classList.add('active');
+}
+
+// 인벤토리 수집 로직
+let collectedCount = 0;
+const collectedItems = new Set();
+
+function collectClue(itemName, desc, icon, cardElement) {
+    if (collectedItems.has(itemName)) return;
+    collectedItems.add(itemName);
+    collectedCount++;
+    document.getElementById('invCount').innerText = collectedCount;
+    cardElement.classList.add('collected');
+    cardElement.querySelector('.spot-status').innerText = '✅ 수집 완료';
+
+    const slots = document.getElementById('inventorySlots').children;
+    if (slots[collectedCount - 1]) {
+        slots[collectedCount - 1].className = 'slot filled';
+        slots[collectedCount - 1].innerHTML = `${icon} <strong>${itemName}</strong>`;
+    }
+
+    appendChat('partner', '{{ case.partner }}', `“어레레~? [${itemName}]을(를) 찾았구나! ${desc}”`);
+}
+
+// 1. 붕대남 조합 기믹
+function combineItems() {
+    const res = document.getElementById('combineResult');
+    res.classList.remove('hidden');
+    appendChat('partner', '{{ case.partner }}', "“그렇구나! 잘린 머리를 외투에 숨긴 채 활차로 날려버린 거야!”");
+}
+
+// 2. 월광 소나타 피아노 기믹
+let currentNotes = "";
+function pressPiano(note) {
+    currentNotes += note;
+    document.getElementById('pianoCodeDisplay').innerText = currentNotes;
+    if (currentNotes === "ASAI") {
+        const res = document.getElementById('pianoResult');
+        res.innerText = "✅ 암호 해독 성공! 악보의 숨겨진 단어는 [ASAI]였습니다!";
+        res.classList.remove('hidden');
+        appendChat('partner', '{{ case.partner }}', "“ASAI... 설마 섬의 여의사 아사이 선생님?!”");
+    }
+}
+function resetPiano() {
+    currentNotes = "";
+    document.getElementById('pianoCodeDisplay').innerText = "----";
+}
+
+// 3. 괴도 키드 조명 기믹
+let lightSeq = [];
+function clickLight(light) {
+    lightSeq.push(light);
+    document.getElementById('lightDisplay').innerText = lightSeq.join(" ➔ ");
+    if (lightSeq.join("") === "ACB") {
+        const res = document.getElementById('lightResult');
+        res.innerText = "✅ 키드의 공중보행 와이어가 서치라이트에 선명히 포착되었습니다!";
+        res.classList.remove('hidden');
+        appendChat('partner', '{{ case.partner }}', "“잡았다, 괴도 키드! 헬기 와이어에 매달려 있던 거였어!”");
+    }
+}
+function resetLight() {
+    lightSeq = [];
+    document.getElementById('lightDisplay').innerText = "없음";
+}
+
+// 4. 열차 폭탄 타이머
+let timeLeft = 60;
+setInterval(() => {
+    if (timeLeft > 0) {
+        timeLeft--;
+        const el = document.getElementById('timerText');
+        if (el) el.innerText = timeLeft;
+    }
+}, 1000);
+
+function checkBombCode() {
+    const val = document.getElementById('bombCodeInput').value.trim();
+    const res = document.getElementById('bombResult');
+    if (val === "8942") {
+        res.innerText = "✅ 연결 해제 성공! 화물칸 객차가 안전하게 분리되었습니다!";
+        res.classList.remove('hidden');
+        appendChat('partner', '{{ case.partner }}', "“해냈군. 이제 키드의 탈출 플랜만 남았다!”");
+    } else {
+        alert("비밀번호가 일치하지 않습니다!");
+    }
+}
+
+// 챗봇 연동
+function appendChat(role, name, text) {
+    const flow = document.getElementById('chatFlow');
+    const bubble = document.createElement('div');
+    bubble.className = `chat-bubble ${role}`;
+    bubble.innerHTML = `<div class="author">${name}</div><p>${text}</p>`;
+    flow.appendChild(bubble);
+    flow.scrollTop = flow.scrollHeight;
+}
+
+async function requestAiReply(message) {
+    appendChat('user', '나', message);
+    try {
+        const res = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: message })
+        });
+        const data = await res.json();
+        appendChat('partner', '{{ case.partner }}', data.reply);
+    } catch (err) {
+        appendChat('partner', '{{ case.partner }}', '무전 상태가 불안정해! 다시 질문해줘.');
+    }
+}
+
+function sendSelectedChoice(text) { requestAiReply(text); }
+function sendDirectMessage() {
+    const input = document.getElementById('userDirectInput');
+    const msg = input.value.trim();
+    if (!msg) return;
+    input.value = '';
+    requestAiReply(msg);
+}
+</script>
+{% endblock %}

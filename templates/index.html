@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="hero-section">
+    <div class="hero-content">
+        <span class="hero-tag">POINT & CLICK MYSTERY GAME</span>
+        <h2>🕵️ 명탐정 코난 전설의 4대 미스터리 파일</h2>
+        <p>현장 속 단서를 클릭해 인벤토리에 수집하고, 트릭을 조합하거나 암호를 풀어 진범을 검거하세요!</p>
+    </div>
+</section>
+
+<div class="case-grid">
+    {% for id, c in cases.items() %}
+    <div class="case-card">
+        <div class="card-img-wrap">
+            <img src="{{ url_for('static', filename='images/' + c.bg_img) }}" alt="{{ c.title }}">
+            <span class="card-badge">{{ c.theme }}</span>
+        </div>
+        <div class="card-info">
+            <div class="partner-pill">
+                <img src="{{ url_for('static', filename='images/' + c.partner_avatar) }}" alt="{{ c.partner }}">
+                <span>파트너: <strong>{{ c.partner }}</strong></span>
+            </div>
+            <h3>{{ c.title }}</h3>
+            <p class="desc">{{ c.intro[:85] }}...</p>
+            <a href="/case/{{ c.id }}" class="btn btn-enter">현장 조사 개시 🔍</a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
